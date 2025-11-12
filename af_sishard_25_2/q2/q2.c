@@ -9,7 +9,22 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <limits.h> 
 
+
+
+int find_max(int *arr, int start, int end){
+
+    int max_val = INT_MIN;
+
+    for(int i = start; i < end; i++){
+        if (arr[i] > max_val){
+            max_val = arr[i];
+        }
+    }
+
+    return max_val;
+}
 
 int main()
 {
@@ -29,10 +44,62 @@ int main()
         scanf("%d", &A[i]);
     }
      
+    int segment_size = n / k;
     printf("Processo pai cria os K=%d Processos Filhos para analisar o vetor com N=%d posicoes do Vetor A[]...\n",k,n);
     fflush(stdout);
 
     // Implemente aqui a criacao dos processos filhos
+
+
+    int pipes[k][2];
+    for(int i = 0; i < k; i++){
+        
+
+        if(pipe(pipes[i]) == -1){
+            perror("pipe");
+            exit(EXIT_FAILURE);
+        }
+
+        pit_t pid = fork();
+
+        if(pid == -1){
+            perror("fork failed");
+            exit(EXIT_FAILURE);
+        }
+
+        if(pid == 0){
+            close(pipes[i][0]);
+
+            int start_index = i * segment_size;
+            int end_index = (i == NUM_CHILDREN - 1) ? n : (i + 1) * segment_size;
+
+            int child_max = find_max(A, start_index, end_index);
+            write(pipes[i][1], &child_max, sizeof(int)); 
+            close(pipes[i][1]); 
+            exit(EXIT_SUCCESS);
+        }
+
+        else{
+
+            close(pipes[i][1]);
+        }
+    }
+
+    int overall_max = INT_MIN;
+    for(int i = 0; i < k; i++){
+        int child_max_val;
+        read(pipes[i][0], &child_max_val, sizeof(int)); 
+        close(pipes[i][0]);
+
+        if(child_max_val > overall_max){
+            overall_max = child_max_val;
+        }
+
+        wait(NULL);
+
+    }
+
+    printf("Maior numero do vetor: %d\n", overall_max);
 
 
 
